@@ -1,0 +1,21 @@
+name: vton_bot
+channels:
+  - pytorch
+  - conda-forge
+
+dependencies:
+  - python=3.9
+  - pip
+  - cudatoolkit=11.7
+  - pytorch=2.0.1
+  - torchvision=0.15.2
+  - torchaudio=2.0.2
+  - numpy
+  - pillow
+  - opencv
+  - scikit-image
+  - trimesh
+  - smplx
+  - pip:
+      - rembg
+      - huggingface_hub
