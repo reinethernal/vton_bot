@@ -16,6 +16,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Exported symbols for use from other modules
+__all__ = ["VTONPipeline", "process_vton", "virtual_try_on"]
+
 # ========== rembg fallback ==========
 try:
     from rembg import remove
