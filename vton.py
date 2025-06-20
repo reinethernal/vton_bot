@@ -100,7 +100,7 @@ class VTONPipeline:
         }
 
     def warp(self, cloth, mask, src_pts, dst_pts):
-        """PiecewiseAffine warp."""
+        """Piecewise-affine warp."""
         src = np.array([src_pts[k] for k in ["nose","left_shoulder","right_shoulder","left_hip","right_hip"]])
         dst = np.array([dst_pts[k] for k in ["nose","left_shoulder","right_shoulder","left_hip","right_hip"]])
         tfm = PiecewiseAffineTransform()
@@ -155,6 +155,11 @@ class VTONPipeline:
 
 def process_vton(person_path, cloth_path, output_path):
     return VTONPipeline().run(person_path, cloth_path, output_path)
+
+def virtual_try_on(person_path, cloth_path):
+    """Wrapper for easier use from external modules."""
+    out_path = os.path.join(os.path.dirname(person_path), "vton_result.jpg")
+    return process_vton(person_path, cloth_path, out_path)
 
 if __name__ == "__main__":
     # Пути
