@@ -13,7 +13,6 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types.input_file import FSInputFile
 from dotenv import load_dotenv
 from vton import virtual_try_on
-import pkg_resources
 
 # Load environment variables
 load_dotenv()
