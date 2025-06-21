@@ -129,8 +129,13 @@ class VTONPipeline:
 
         # 1) Загрузка + удаление фона
         person = cv2.imread(person_path, cv2.IMREAD_UNCHANGED)
-        person = np.array(remove(person))[:,:,:3]  # RGBA→RGB
-        cloth  = cv2.imread(cloth_path, cv2.IMREAD_COLOR)
+        if person is None:
+            raise RuntimeError(f"Failed to load person image from '{person_path}'")
+        person = np.array(remove(person))[:, :, :3]  # RGBA→RGB
+
+        cloth = cv2.imread(cloth_path, cv2.IMREAD_COLOR)
+        if cloth is None:
+            raise RuntimeError(f"Failed to load cloth image from '{cloth_path}'")
 
         # 2) Сегментация одежды + кроп
         cloth_mask = self.segment(cloth)
