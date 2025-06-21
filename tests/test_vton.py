@@ -1,6 +1,6 @@
-import numpy as np
 import pytest
 
+np = pytest.importorskip("numpy")
 torch = pytest.importorskip("torch", reason="torch is required for VTONPipeline")
 from vton import VTONPipeline
 
