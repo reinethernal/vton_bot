@@ -2,3 +2,4 @@ __pycache__/
 static/uploads/
 tmp/
 *.pyc
+temp_person_*.jpg

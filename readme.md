@@ -46,6 +46,20 @@ python main.py
 
 The result images will be saved next to the uploaded user photos.
 
+### Sample image
+
+The repository no longer ships with a default person photo. If you want to
+experiment with the `vton.py` example script or quickly check the pipeline, put
+any JPEG image of a person in the project root and pass its path with the
+`--person` flag:
+
+```bash
+python vton.py --person path/to/your_photo.jpg --cloth static/uniforms/uniform1.png
+```
+
+You may also name the file `temp_person.jpg` and omit the flag so the example
+uses that image automatically.
+
 ## Tests
 
 Install `pytest` (already included in the conda environment) and run:
