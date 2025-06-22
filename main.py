@@ -5,6 +5,7 @@ import json
 import gc
 import psutil
 import torch
+import sys
 from aiogram import Bot, Dispatcher, types, F, __version__ as aiogram_version
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -25,6 +26,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+if not BOT_TOKEN:
+    logger.error("BOT_TOKEN is not set. Exiting.")
+    sys.exit(1)
 
 # Memory monitoring function
 def log_memory_usage():
