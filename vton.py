@@ -170,16 +170,32 @@ def virtual_try_on(person_path, cloth_path):
     return process_vton(person_path, cloth_path, out_path)
 
 if __name__ == "__main__":
-    # Пути
-    person = "/root/bot/temp_person_50007584.jpg"
-    cloth  = "/root/bot/static/uniforms/uniform1.png"
-    out    = "/root/bot/tmp/vton_result.jpg"
+    import argparse
+    from pathlib import Path
 
-    # Заглушки
-    for p in (person, cloth):
+    parser = argparse.ArgumentParser(description="Run a simple VTON example")
+    cwd = Path.cwd()
+    parser.add_argument(
+        "--person",
+        default=str(cwd / "temp_person_50007584.jpg"),
+        help="Path to the person image",
+    )
+    parser.add_argument(
+        "--cloth",
+        default=str(cwd / "static" / "uniforms" / "uniform1.png"),
+        help="Path to the cloth image",
+    )
+    parser.add_argument(
+        "--out",
+        default=str(cwd / "tmp" / "vton_result.jpg"),
+        help="Where to save the result image",
+    )
+    args = parser.parse_args()
+
+    for p in (args.person, args.cloth):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         if not os.path.exists(p):
-            cv2.imwrite(p, np.zeros((1024,1024,3),dtype=np.uint8))
+            cv2.imwrite(p, np.zeros((1024, 1024, 3), dtype=np.uint8))
 
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    process_vton(person, cloth, out)
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    process_vton(args.person, args.cloth, args.out)

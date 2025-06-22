@@ -1,13 +1,23 @@
 import os
 import shutil
 import logging
+import argparse
+from pathlib import Path
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 logger = logging.getLogger(__name__)
 
-# Целевая директория для копирования
-TARGET_DIR = "/root/bot/checkpoints_collected"
+# Целевая директория для копирования задаётся аргументом
+parser = argparse.ArgumentParser(description="Collect model checkpoints")
+parser.add_argument(
+    "--target-dir",
+    default=str(Path.cwd() / "checkpoints_collected"),
+    help="Directory to copy checkpoints into",
+)
+args = parser.parse_args()
+
+TARGET_DIR = args.target_dir
 os.makedirs(TARGET_DIR, exist_ok=True)
 
 # Список исходных путей (из вашего find)
