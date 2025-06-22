@@ -10,10 +10,11 @@ logger = logging.getLogger(__name__)
 
 # Целевая директория для копирования задаётся аргументом
 parser = argparse.ArgumentParser(description="Collect model checkpoints")
+DEFAULT_TARGET_DIR = os.environ.get("TARGET_DIR", "checkpoints_collected")
 parser.add_argument(
     "--target-dir",
-    default=str(Path.cwd() / "checkpoints_collected"),
-    help="Directory to copy checkpoints into",
+    default=DEFAULT_TARGET_DIR,
+    help="Directory to copy checkpoints into (or set TARGET_DIR env var)",
 )
 args = parser.parse_args()
 
