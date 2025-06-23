@@ -1,10 +1,17 @@
+import os
 import numpy as np
-import cv2
 import pytest
+cv2 = pytest.importorskip("cv2")
 from vton import VTONPipeline
 
+# Skip heavy tests when requested or when heavy dependencies are missing.
+SKIP_HEAVY = os.getenv("SKIP_HEAVY_TESTS") == "1"
 
+
+@pytest.mark.skipif(SKIP_HEAVY, reason="Heavy tests are skipped")
 def test_segment_size():
+    pytest.importorskip("torch")
+    pytest.importorskip("torchvision")
     pipe = VTONPipeline()
     img = np.zeros((64, 32, 3), dtype=np.uint8)
     mask = pipe.segment(img)

@@ -62,9 +62,16 @@ uses that image automatically.
 
 ## Tests
 
-Install `pytest` (already included in the conda environment) and run:
+Running the tests requires the same Conda environment used by the bot. Make
+sure you create and activate it first:
 
 ```bash
+conda env create -f environment.yml
+conda activate vton_bot
 pytest
 ```
+
+If some of the heavy dependencies such as PyTorch are not available you can set
+`SKIP_HEAVY_TESTS=1` to run only the lightweight tests. Heavy tests will also be
+automatically skipped when the required packages are missing.
 
