@@ -177,7 +177,7 @@ if __name__ == "__main__":
     cwd = Path.cwd()
     parser.add_argument(
         "--person",
-        default=str(cwd / "temp_person_50007584.jpg"),
+        default=str(cwd / "temp_person.jpg"),
         help="Path to the person image",
     )
     parser.add_argument(
