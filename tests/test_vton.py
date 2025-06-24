@@ -1,6 +1,6 @@
 import os
-import numpy as np
 import pytest
+np = pytest.importorskip("numpy")
 cv2 = pytest.importorskip("cv2")
 from vton import VTONPipeline
 
