@@ -3,3 +3,4 @@ static/uploads/
 tmp/
 *.pyc
 temp_person_*.jpg
+temp_person.jpg
