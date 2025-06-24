@@ -40,7 +40,7 @@ class VTONPipeline:
 
         # Keypoint R-CNN for human pose (nose, shoulders, hips, etc.)
         self.pose_model = models.detection.keypointrcnn_resnet50_fpn(
-            pretrained=True
+            weights="DEFAULT"
         ).eval().to(self.device)
         logger.info("Keypoint R-CNN loaded.")
 
