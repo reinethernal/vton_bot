@@ -3,9 +3,15 @@ import os
 import cv2
 import numpy as np
 from PIL import Image
-import torch
-import torch.nn.functional as F
-from torchvision import transforms, models
+try:
+    import torch
+    import torch.nn.functional as F
+    from torchvision import transforms, models
+except ImportError:  # pragma: no cover - optional heavy deps
+    torch = None
+    F = None
+    transforms = None
+    models = None
 from skimage.transform import PiecewiseAffineTransform, warp
 import logging
 
@@ -28,6 +34,9 @@ except ImportError:
 
 class VTONPipeline:
     def __init__(self):
+        if torch is None or transforms is None or models is None:
+            raise RuntimeError("PyTorch and torchvision are required for VTONPipeline")
+
         # Device
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
@@ -254,10 +263,9 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    for p in (args.person, args.cloth):
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        if not os.path.exists(p):
-            cv2.imwrite(p, np.zeros((1024, 1024, 3), dtype=np.uint8))
+    for path, opt in ((args.person, "--person"), (args.cloth, "--cloth")):
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"File specified via {opt} does not exist: '{path}'")
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     process_vton(args.person, args.cloth, args.out)
