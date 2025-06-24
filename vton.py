@@ -102,8 +102,8 @@ class VTONPipeline:
             "right_hip":     (x + w,   y + 3*h//4),
         }
 
-    def warp(self, cloth, mask, src_pts, dst_pts):
-        """Piecewise-affine warp."""
+    def warp(self, cloth, mask, src_pts, dst_pts, person_shape=None):
+        """Piecewise-affine warp with fallback to simple scaling."""
         src = np.array(
             [src_pts[k] for k in ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]],
             dtype=np.float32,
@@ -113,23 +113,58 @@ class VTONPipeline:
             dtype=np.float32,
         )
         tfm = PiecewiseAffineTransform()
-        if not tfm.estimate(src, dst):
-            raise RuntimeError("Warp estimation failed")
+        try:
+            if not tfm.estimate(src, dst):
+                raise RuntimeError("Warp estimation failed")
 
-        # Verify the transform by mapping the destination points back to the source
-        # space and ensure the error is not excessively large. This prevents
-        # applying a wildly distorted warp when keypoints are unreliable.
-        inv_pts = tfm.inverse(dst)
-        if not np.all(np.isfinite(inv_pts)):
-            raise RuntimeError("Warp estimation failed")
-        err = np.linalg.norm(inv_pts - src, axis=1)
-        if np.any(err > 10):
-            raise RuntimeError("Warp estimation failed")
-        ci = cloth.astype(np.float32)/255.0
-        cm = mask.astype(np.float32)/255.0
-        wi = warp(ci, tfm, output_shape=ci.shape)
-        wm = warp(cm, tfm, output_shape=cm.shape)
-        return (wi*255).astype(np.uint8), (wm>0.5).astype(np.uint8)*255
+            # Verify the transform by mapping the destination points back to the source
+            # space and ensure the error is not excessively large. This prevents
+            # applying a wildly distorted warp when keypoints are unreliable.
+            inv_pts = tfm.inverse(dst)
+            if not np.all(np.isfinite(inv_pts)):
+                raise RuntimeError("Warp estimation failed")
+            err = np.linalg.norm(inv_pts - src, axis=1)
+            if np.any(err > 10):
+                raise RuntimeError("Warp estimation failed")
+            ci = cloth.astype(np.float32)/255.0
+            cm = mask.astype(np.float32)/255.0
+            wi = warp(ci, tfm, output_shape=ci.shape)
+            wm = warp(cm, tfm, output_shape=cm.shape)
+            return (wi*255).astype(np.uint8), (wm>0.5).astype(np.uint8)*255
+        except Exception as e:
+            logger.warning(
+                "Warp estimation failed (%s). Using approximate overlay.", e
+            )
+            if person_shape is None:
+                return cloth, mask
+            ph, pw = person_shape
+            bbox_pts = [
+                dst_pts["left_shoulder"],
+                dst_pts["right_shoulder"],
+                dst_pts["left_hip"],
+                dst_pts["right_hip"],
+            ]
+            x0 = min(p[0] for p in bbox_pts)
+            x1 = max(p[0] for p in bbox_pts)
+            y0 = min(p[1] for p in bbox_pts)
+            y1 = max(p[1] for p in bbox_pts)
+
+            # map bbox to cloth coordinate system
+            cx0 = int(np.clip(x0 / pw * cloth.shape[1], 0, cloth.shape[1] - 1))
+            cx1 = int(np.clip(x1 / pw * cloth.shape[1], cx0 + 1, cloth.shape[1]))
+            cy0 = int(np.clip(y0 / ph * cloth.shape[0], 0, cloth.shape[0] - 1))
+            cy1 = int(np.clip(y1 / ph * cloth.shape[0], cy0 + 1, cloth.shape[0]))
+
+            new_w = max(cx1 - cx0, 1)
+            new_h = max(cy1 - cy0, 1)
+            scaled_cloth = cv2.resize(cloth, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
+            scaled_mask = cv2.resize(mask, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+
+            out_cloth = np.zeros_like(cloth)
+            out_mask = np.zeros_like(mask)
+            out_cloth[cy0:cy1, cx0:cx1] = scaled_cloth
+            out_mask[cy0:cy1, cx0:cx1] = scaled_mask
+            return out_cloth, out_mask
 
     def blend(self, person, cloth, mask):
         """Простое alpha-blend наложение."""
@@ -169,7 +204,9 @@ class VTONPipeline:
             raise RuntimeError("Keypoint extraction failed")
 
         # 4) Warp + Blend
-        warped_cloth, warped_mask = self.warp(cloth_crop, mask_crop, kp_cloth, kp_person)
+        warped_cloth, warped_mask = self.warp(
+            cloth_crop, mask_crop, kp_cloth, kp_person, person.shape[:2]
+        )
         result = self.blend(person, warped_cloth, warped_mask)
 
         # 5) Сохраняем
