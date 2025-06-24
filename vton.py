@@ -72,11 +72,20 @@ class VTONPipeline:
         with torch.no_grad():
             out = self.pose_model([tensor])[0]
         kps = out["keypoints"]        # [N, 17, 3]
-        scores = out["keypoints_scores"] if "keypoints_scores" in out else None
+        kp_scores = out.get("keypoints_scores")
+        det_scores = out.get("scores")
         if kps.shape[0] == 0:
             return None
+        if det_scores is not None and det_scores[0].item() < 0.5:
+            return None
+
         # выбираем первое тело
         kp = kps[0].cpu().numpy()
+        if kp_scores is not None:
+            ks = kp_scores[0].cpu().numpy()
+            needed = [0, 5, 6, 11, 12]
+            if np.any(ks[needed] < 0.5):
+                return None
         # индексы COCO keypoints
         # 0 - nose, 5 - left_shoulder, 6 - right_shoulder, 11 - left_hip, 12 - right_hip
         pts = {
