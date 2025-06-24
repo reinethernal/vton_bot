@@ -104,10 +104,26 @@ class VTONPipeline:
 
     def warp(self, cloth, mask, src_pts, dst_pts):
         """Piecewise-affine warp."""
-        src = np.array([src_pts[k] for k in ["nose","left_shoulder","right_shoulder","left_hip","right_hip"]])
-        dst = np.array([dst_pts[k] for k in ["nose","left_shoulder","right_shoulder","left_hip","right_hip"]])
+        src = np.array(
+            [src_pts[k] for k in ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]],
+            dtype=np.float32,
+        )
+        dst = np.array(
+            [dst_pts[k] for k in ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]],
+            dtype=np.float32,
+        )
         tfm = PiecewiseAffineTransform()
         if not tfm.estimate(src, dst):
+            raise RuntimeError("Warp estimation failed")
+
+        # Verify the transform by mapping the destination points back to the source
+        # space and ensure the error is not excessively large. This prevents
+        # applying a wildly distorted warp when keypoints are unreliable.
+        inv_pts = tfm.inverse(dst)
+        if not np.all(np.isfinite(inv_pts)):
+            raise RuntimeError("Warp estimation failed")
+        err = np.linalg.norm(inv_pts - src, axis=1)
+        if np.any(err > 10):
             raise RuntimeError("Warp estimation failed")
         ci = cloth.astype(np.float32)/255.0
         cm = mask.astype(np.float32)/255.0
