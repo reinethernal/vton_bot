@@ -23,7 +23,12 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Exported symbols for use from other modules
-__all__ = ["VTONPipeline", "process_vton", "virtual_try_on"]
+__all__ = [
+    "VTONPipeline",
+    "process_vton",
+    "virtual_try_on",
+    "get_pipeline",
+]
 
 # ========== rembg fallback ==========
 try:
@@ -232,13 +237,27 @@ class VTONPipeline:
         logger.info(f"Saved result to {out_path}")
         return out_path
 
-def process_vton(person_path, cloth_path, output_path):
-    return VTONPipeline().run(person_path, cloth_path, output_path)
 
-def virtual_try_on(person_path, cloth_path):
-    """Wrapper for easier use from external modules."""
+_GLOBAL_PIPELINE = None
+
+
+def get_pipeline():
+    """Return a cached :class:`VTONPipeline` instance."""
+    global _GLOBAL_PIPELINE
+    if _GLOBAL_PIPELINE is None:
+        _GLOBAL_PIPELINE = VTONPipeline()
+    return _GLOBAL_PIPELINE
+
+def process_vton(person_path, cloth_path, output_path, pipeline=None):
+    """Run the virtual try-on pipeline."""
+    if pipeline is None:
+        pipeline = get_pipeline()
+    return pipeline.run(person_path, cloth_path, output_path)
+
+def virtual_try_on(person_path, cloth_path, pipeline=None):
+    """Convenience wrapper returning the output path of the result image."""
     out_path = os.path.join(os.path.dirname(person_path), "vton_result.jpg")
-    return process_vton(person_path, cloth_path, out_path)
+    return process_vton(person_path, cloth_path, out_path, pipeline=pipeline)
 
 if __name__ == "__main__":
     import argparse
