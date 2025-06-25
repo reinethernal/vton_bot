@@ -286,7 +286,6 @@ dependencies:
       - pytest==8.4.1
       - python-dateutil==2.9.0.post0
       - python-dotenv==1.1.0
-      - python-telegram-bot==22.1
       - referencing==0.36.2
       - rembg==2.0.66
       - requests==2.32.4
