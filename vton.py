@@ -2,6 +2,7 @@
 import os
 import cv2
 import numpy as np
+from pathlib import Path
 from PIL import Image
 try:
     import torch
@@ -52,11 +53,36 @@ class VTONPipeline:
         ).eval().to(self.device)
         logger.info("DeepLabV3 loaded.")
 
-        # Keypoint R-CNN for human pose (nose, shoulders, hips, etc.)
-        self.pose_model = models.detection.keypointrcnn_resnet50_fpn(
-            weights="DEFAULT"
-        ).eval().to(self.device)
-        logger.info("Keypoint R-CNN loaded.")
+        # Attempt to use OpenPose BODY_25 for pose estimation. The model
+        # weights are referenced relative to the repository root, matching
+        # the paths used in collect_checkpoints.py. If OpenPose or its
+        # weights are unavailable, fall back to Mediapipe.
+        self.openpose_body = Path("pytorch-openpose/model/body_pose_model.pth")
+        self.openpose_hand = Path("pytorch-openpose/model/hand_pose_model.pth")
+        self.pose_backend = "mediapipe"
+        try:  # pragma: no cover - optional heavy deps
+            from openpose import pyopenpose as op  # type: ignore
+            if self.openpose_body.exists():
+                params = {
+                    "model_folder": str(self.openpose_body.parent),
+                    "model_pose": "BODY_25",
+                }
+                self.op = op
+                self.op_wrapper = op.WrapperPython()
+                self.op_wrapper.configure(params)
+                self.op_wrapper.start()
+                self.pose_backend = "openpose"
+                logger.info("OpenPose loaded from %s", self.openpose_body)
+            else:
+                raise FileNotFoundError
+        except Exception:
+            import mediapipe as mp
+
+            self.mp = mp
+            self.mp_pose = self.mp.solutions.pose.Pose(static_image_mode=True)
+            logger.warning(
+                "OpenPose not available; falling back to Mediapipe pose"
+            )
 
         # transforms
         self.to_tensor = transforms.ToTensor()
@@ -76,65 +102,112 @@ class VTONPipeline:
         return cv2.resize(mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
 
     def extract_keypoints(self, img: np.ndarray):
-        """
-        Возвращает COCO-ключи: nose, left_shoulder, right_shoulder, left_hip, right_hip
-        или None, если человек не найден.
-        """
-        # подготовка
-        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        tensor = self.to_tensor(rgb).to(self.device)
-        with torch.no_grad():
-            out = self.pose_model([tensor])[0]
-        kps = out["keypoints"]        # [N, 17, 3]
-        kp_scores = out.get("keypoints_scores")
-        det_scores = out.get("scores")
-        if kps.shape[0] == 0:
-            return None
-        if det_scores is not None and det_scores[0].item() < 0.5:
-            return None
-
-        # выбираем первое тело
-        kp = kps[0].cpu().numpy()
-        if kp_scores is not None:
-            ks = kp_scores[0].cpu().numpy()
-            needed = [0, 5, 6, 11, 12]
-            if np.any(ks[needed] < 0.5):
+        """Return keypoints for the main person in the image."""
+        if self.pose_backend == "openpose":  # pragma: no cover - heavy path
+            datum = self.op.Datum()  # type: ignore[attr-defined]
+            datum.cvInputData = img
+            self.op_wrapper.emplaceAndPop([datum])
+            pts_arr = datum.poseKeypoints
+            if pts_arr is None or pts_arr.size == 0:
                 return None
-        # индексы COCO keypoints
-        # 0 - nose, 5 - left_shoulder, 6 - right_shoulder, 11 - left_hip, 12 - right_hip
-        pts = {
-            "nose":          tuple(kp[0,:2].astype(int)),
-            "left_shoulder": tuple(kp[5,:2].astype(int)),
-            "right_shoulder":tuple(kp[6,:2].astype(int)),
-            "left_hip":      tuple(kp[11,:2].astype(int)),
-            "right_hip":     tuple(kp[12,:2].astype(int)),
-        }
-        return pts
+            kp = pts_arr[0]
+            mapping = {
+                "nose": 0,
+                "left_shoulder": 5,
+                "right_shoulder": 2,
+                "left_elbow": 6,
+                "right_elbow": 3,
+                "left_wrist": 7,
+                "right_wrist": 4,
+                "left_hip": 12,
+                "right_hip": 9,
+                "left_knee": 13,
+                "right_knee": 10,
+                "left_ankle": 14,
+                "right_ankle": 11,
+            }
+            pts = {k: tuple(kp[i, :2].astype(int)) for k, i in mapping.items()}
+            return pts
+        else:
+            results = self.mp_pose.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+            lm = results.pose_landmarks
+            if not lm:
+                return None
+            h, w = img.shape[:2]
+            idx = self.mp.solutions.pose.PoseLandmark  # type: ignore[attr-defined]
+            mapping = {
+                "nose": idx.NOSE,
+                "left_shoulder": idx.LEFT_SHOULDER,
+                "right_shoulder": idx.RIGHT_SHOULDER,
+                "left_elbow": idx.LEFT_ELBOW,
+                "right_elbow": idx.RIGHT_ELBOW,
+                "left_wrist": idx.LEFT_WRIST,
+                "right_wrist": idx.RIGHT_WRIST,
+                "left_hip": idx.LEFT_HIP,
+                "right_hip": idx.RIGHT_HIP,
+                "left_knee": idx.LEFT_KNEE,
+                "right_knee": idx.RIGHT_KNEE,
+                "left_ankle": idx.LEFT_ANKLE,
+                "right_ankle": idx.RIGHT_ANKLE,
+            }
+            pts = {}
+            for name, landmark_idx in mapping.items():
+                lm_pt = lm.landmark[landmark_idx]
+                if lm_pt.visibility < 0.5:
+                    return None
+                pts[name] = (int(lm_pt.x * w), int(lm_pt.y * h))
+            return pts
 
     def get_cloth_keypoints(self, mask: np.ndarray):
-        """Ключевые точки одежды по bbox контура."""
-        cnts,_ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        """Approximate keypoints for the garment based on its bounding box."""
+        cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not cnts:
             return None
-        x,y,w,h = cv2.boundingRect(max(cnts, key=cv2.contourArea))
+        x, y, w, h = cv2.boundingRect(max(cnts, key=cv2.contourArea))
+
+        def pt(px, py):
+            return (
+                int(np.clip(px, 0, mask.shape[1] - 1)),
+                int(np.clip(py, 0, mask.shape[0] - 1)),
+            )
+
         return {
-            "nose":          (x + w//2, y),
-            "left_shoulder": (x,       y + h//4),
-            "right_shoulder":(x + w,   y + h//4),
-            "left_hip":      (x,       y + 3*h//4),
-            "right_hip":     (x + w,   y + 3*h//4),
+            "nose": pt(x + w * 0.5, y),
+            "left_shoulder": pt(x + w * 0.1, y + h * 0.25),
+            "right_shoulder": pt(x + w * 0.9, y + h * 0.25),
+            "left_elbow": pt(x + w * 0.05, y + h * 0.5),
+            "right_elbow": pt(x + w * 0.95, y + h * 0.5),
+            "left_wrist": pt(x, y + h * 0.75),
+            "right_wrist": pt(x + w, y + h * 0.75),
+            "left_hip": pt(x + w * 0.25, y + h),
+            "right_hip": pt(x + w * 0.75, y + h),
+            "left_knee": pt(x + w * 0.25, y + h * 1.25),
+            "right_knee": pt(x + w * 0.75, y + h * 1.25),
+            "left_ankle": pt(x + w * 0.25, y + h * 1.5),
+            "right_ankle": pt(x + w * 0.75, y + h * 1.5),
         }
 
     def warp(self, cloth, mask, src_pts, dst_pts, person_shape=None):
         """Piecewise-affine warp with fallback to simple scaling."""
-        src = np.array(
-            [src_pts[k] for k in ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]],
-            dtype=np.float32,
-        )
-        dst = np.array(
-            [dst_pts[k] for k in ["nose", "left_shoulder", "right_shoulder", "left_hip", "right_hip"]],
-            dtype=np.float32,
-        )
+        keys = [
+            "nose",
+            "left_shoulder",
+            "right_shoulder",
+            "left_elbow",
+            "right_elbow",
+            "left_wrist",
+            "right_wrist",
+            "left_hip",
+            "right_hip",
+            "left_knee",
+            "right_knee",
+            "left_ankle",
+            "right_ankle",
+        ]
+        src = np.array([src_pts[k] for k in keys if k in src_pts], dtype=np.float32)
+        dst = np.array([dst_pts[k] for k in keys if k in dst_pts], dtype=np.float32)
+        if len(src) < 3 or len(dst) < 3:
+            raise RuntimeError("Not enough keypoints")
         tfm = PiecewiseAffineTransform()
         try:
             if not tfm.estimate(src, dst):
@@ -161,12 +234,7 @@ class VTONPipeline:
             if person_shape is None:
                 return cloth, mask
             ph, pw = person_shape
-            bbox_pts = [
-                dst_pts["left_shoulder"],
-                dst_pts["right_shoulder"],
-                dst_pts["left_hip"],
-                dst_pts["right_hip"],
-            ]
+            bbox_pts = list(dst_pts.values())
             x0 = min(p[0] for p in bbox_pts)
             x1 = max(p[0] for p in bbox_pts)
             y0 = min(p[1] for p in bbox_pts)
