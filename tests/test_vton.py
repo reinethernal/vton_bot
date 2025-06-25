@@ -34,3 +34,16 @@ def test_run_cloth_imread_failure(tmp_path):
     out = tmp_path / "out.jpg"
     with pytest.raises(RuntimeError, match="Failed to load cloth image"):
         pipe.run(str(person_path), "nonexistent.jpg", str(out))
+
+
+def test_get_pipeline_cache(monkeypatch):
+    from vton import get_pipeline
+
+    dummy = object()
+    monkeypatch.setattr("vton.VTONPipeline", lambda: dummy)
+    monkeypatch.setattr("vton._GLOBAL_PIPELINE", None)
+
+    first = get_pipeline()
+    second = get_pipeline()
+
+    assert first is second is dummy
