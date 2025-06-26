@@ -158,8 +158,21 @@ class VTONPipeline:
                 pts[name] = (int(lm_pt.x * w), int(lm_pt.y * h))
             return pts
 
-    def get_cloth_keypoints(self, mask: np.ndarray):
-        """Approximate keypoints for the garment based on its bounding box."""
+    def get_cloth_keypoints(self, cloth: np.ndarray, mask: np.ndarray):
+        """Return cloth keypoints using OpenPose with bbox fallback.
+
+        ``cloth`` is the cropped garment image and ``mask`` its segmentation
+        mask. If OpenPose is available and manages to detect a body from the
+        masked cloth image, those keypoints are returned. Otherwise we fall back
+        to the previous heuristic based on the bounding box.
+        """
+
+        if self.pose_backend == "openpose":  # pragma: no cover - optional path
+            seg = cv2.bitwise_and(cloth, cloth, mask=mask)
+            pts = self.extract_keypoints(seg)
+            if pts:
+                return pts
+
         cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         if not cnts:
             return None
@@ -290,7 +303,7 @@ class VTONPipeline:
 
         # 3) Ключевые точки
         kp_person = self.extract_keypoints(person)
-        kp_cloth  = self.get_cloth_keypoints(mask_crop)
+        kp_cloth  = self.get_cloth_keypoints(cloth_crop, mask_crop)
         if kp_person is None or kp_cloth is None:
             raise RuntimeError("Keypoint extraction failed")
 
