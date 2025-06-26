@@ -47,3 +47,11 @@ def test_get_pipeline_cache(monkeypatch):
     second = get_pipeline()
 
     assert first is second is dummy
+
+
+def test_invalid_segmentation_model():
+    import vton
+    if vton.torch is None:
+        pytest.skip("torch not available")
+    with pytest.raises(ValueError):
+        VTONPipeline(segmentation_model="foo")

@@ -44,6 +44,11 @@ Launch the bot with:
 python main.py
 ```
 
+By default the pipeline uses DeepLabV3 for garment segmentation. To use a
+pretrained U2Net model instead, instantiate `VTONPipeline` with
+`segmentation_model="u2net"` and ensure the weights file
+`models/cloth_segm_u2net_latest.pth` is available.
+
 The result images will be saved next to the uploaded user photos.
 
 ### Sample image
