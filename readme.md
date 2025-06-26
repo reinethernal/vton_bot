@@ -34,7 +34,10 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
    CatVTON and VITON-HD checkpoints are provided in their respective repositories.
    Place the downloaded files at the paths listed in the table below.
 
-4. *(Optional)* Gather pretrained checkpoints into a single directory:
+4. *(Optional)* Build the OpenPose Python module. Ensure that the system package providing `google/protobuf/runtime_version.h` (`libprotobuf-dev` on Ubuntu) is installed. If it is missing or unavailable, compile protobuf from source so that its version matches the installed runtime library. Once this prerequisite is met, run `install_openpose_ubuntu.sh` from the repository root.
+
+
+5. *(Optional)* Gather pretrained checkpoints into a single directory:
 
    ```bash
    python collect_checkpoints.py
