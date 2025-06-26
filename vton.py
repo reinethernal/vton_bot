@@ -39,7 +39,7 @@ except ImportError:
     def remove(img): return img
 
 class VTONPipeline:
-    def __init__(self):
+    def __init__(self, segmentation_model: str = "deeplabv3"):
         if torch is None or transforms is None or models is None:
             raise RuntimeError("PyTorch and torchvision are required for VTONPipeline")
 
@@ -47,11 +47,27 @@ class VTONPipeline:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
 
-        # DeepLabV3 for segmentation
-        self.seg_model = models.segmentation.deeplabv3_resnet50(
-            weights="DEFAULT"
-        ).eval().to(self.device)
-        logger.info("DeepLabV3 loaded.")
+        # Segmentation model
+        self.seg_model_name = segmentation_model
+        if segmentation_model == "deeplabv3":
+            self.seg_model = models.segmentation.deeplabv3_resnet50(
+                weights="DEFAULT"
+            ).eval().to(self.device)
+            logger.info("DeepLabV3 loaded.")
+        elif segmentation_model == "u2net":
+            from u2net import U2NET
+
+            weights = Path("models/cloth_segm_u2net_latest.pth")
+            if not weights.exists():
+                raise FileNotFoundError(f"U2Net weights not found at {weights}")
+            self.seg_model = U2NET(3, 1)
+            self.seg_model.load_state_dict(
+                torch.load(weights, map_location=self.device)
+            )
+            self.seg_model.eval().to(self.device)
+            logger.info("U2Net loaded from %s", weights)
+        else:
+            raise ValueError(f"Unknown segmentation model: {segmentation_model}")
 
         # Attempt to use OpenPose BODY_25 for pose estimation. The model
         # weights are referenced relative to the repository root, matching
@@ -91,15 +107,26 @@ class VTONPipeline:
         )
 
     def segment(self, img: np.ndarray) -> np.ndarray:
-        """Возвращает 0/255 маску переднего плана через DeepLabV3."""
-        pil = Image.fromarray(img[...,::-1])  # BGR→RGB
-        x = self.normalize(transforms.Resize((512,512))(self.to_tensor(pil)))
+        """Return a 0/255 garment mask."""
+        pil = Image.fromarray(img[..., ::-1])  # BGR→RGB
+        x = self.normalize(transforms.Resize((512, 512))(self.to_tensor(pil)))
         x = x.unsqueeze(0).to(self.device)
         with torch.no_grad():
-            out = self.seg_model(x)["out"]
-        mask = F.interpolate(out, size=(512,512), mode="bilinear", align_corners=False)
-        mask = (mask.argmax(1).cpu().numpy()[0]>0).astype(np.uint8)*255
-        return cv2.resize(mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
+            if self.seg_model_name == "deeplabv3":
+                out = self.seg_model(x)["out"]
+                mask = F.interpolate(
+                    out, size=(512, 512), mode="bilinear", align_corners=False
+                )
+                mask = mask.argmax(1)
+            else:  # u2net
+                mask, *_ = self.seg_model(x)
+        mask = mask.squeeze(0)
+        mask = (mask > 0.5).cpu().numpy().astype(np.uint8) * 255
+        mask = cv2.resize(mask, (img.shape[1], img.shape[0]), interpolation=cv2.INTER_NEAREST)
+        kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        return mask
 
     def extract_keypoints(self, img: np.ndarray):
         """Return keypoints for the main person in the image."""
