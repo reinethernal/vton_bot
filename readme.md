@@ -27,12 +27,23 @@ as the NVIDIA RTX A4000.
 UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 ```
 
-3. Download the pretrained model checkpoints. OpenPose weights can be found in the
-   [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose#download-the-models)
-   repository and the U\^2-Net models are available on the
-   [U\^2-Net release page](https://github.com/xuebinqin/U-2-Net/releases).
-   CatVTON and VITON-HD checkpoints are provided in their respective repositories.
-   Place the downloaded files at the paths listed in the table below.
+3. Download the pretrained model checkpoints. The U^2-Net models are available on the
+   [U^2-Net release page](https://github.com/xuebinqin/U-2-Net/releases), and CatVTON
+   and VITON-HD checkpoints are provided in their respective repositories. The OpenPose
+   BODY_25 and hand models can be downloaded directly from Google Drive:
+
+   ```bash
+   # BODY_25 (~200 MB)
+   gdown https://drive.google.com/uc?id=1EULkcH_hhSU28qVc1jSJpCh2hGOrzpjK -O \
+       pytorch-openpose/model/body_pose_model.pth
+
+   # Hand (~25 MB)
+   gdown https://drive.google.com/uc?id=1yVyIsOD32Mq28EHrVVlZbISDN7Icgaxw -O \
+       pytorch-openpose/model/hand_pose_model.pth
+   ```
+
+   Create the `pytorch-openpose/model/` directory if it does not already exist, and
+   place the other model files under `models/` as listed in the table below.
 
 4. *(Optional)* Build the OpenPose Python module. Ensure that the system package providing `google/protobuf/runtime_version.h` (`libprotobuf-dev` on Ubuntu) is installed. If it is missing or unavailable, compile protobuf from source so that its version matches the installed runtime library. Once this prerequisite is met, run `install_openpose_ubuntu.sh` from the repository root.
 
