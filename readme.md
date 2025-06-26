@@ -27,7 +27,14 @@ as the NVIDIA RTX A4000.
 UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 ```
 
-3. *(Optional)* Gather pretrained checkpoints into a single directory:
+3. Download the pretrained model checkpoints. OpenPose weights can be found in the
+   [pytorch-openpose](https://github.com/Hzzone/pytorch-openpose#download-the-models)
+   repository and the U\^2-Net models are available on the
+   [U\^2-Net release page](https://github.com/xuebinqin/U-2-Net/releases).
+   CatVTON and VITON-HD checkpoints are provided in their respective repositories.
+   Place the downloaded files at the paths listed in the table below.
+
+4. *(Optional)* Gather pretrained checkpoints into a single directory:
 
    ```bash
    python collect_checkpoints.py
@@ -35,6 +42,31 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 
    The script copies the various model files into `checkpoints_collected` by default.
    Set the `TARGET_DIR` environment variable or pass `--target-dir` to change the location.
+
+The following table lists the expected locations and approximate sizes of the
+required model files:
+
+| Path | Description | Approx. size |
+| --- | --- | --- |
+| `pytorch-openpose/model/body_pose_model.pth` | OpenPose BODY\_25 weights | ~200 MB |
+| `pytorch-openpose/model/hand_pose_model.pth` | OpenPose hand weights | ~25 MB |
+| `models/u2net.pth` | U\^2-Net base model | ~170 MB |
+| `models/cloth_segm_u2net_latest.pth` | U\^2-Net garment segmentation | ~170 MB |
+| `models/CatVTON/SCHP/exp-schp-201908261155-lip.pth` | CatVTON human parsing (LIP) | ~250 MB |
+| `models/CatVTON/SCHP/exp-schp-201908301523-atr.pth` | CatVTON human parsing (ATR) | ~250 MB |
+| `models/u2net_portrait.pth` | U\^2-Net portrait model | ~170 MB |
+| `models/cloth_seg.pth` | Cloth segmentation | ~100 MB |
+| `models/gmm_final.pth` | Geometric matching module | ~110 MB |
+| `models/seg_final.pth` | Segmentation refinement | ~320 MB |
+| `pytorch3d/tests/pulsar/reference/nr0000-in.pth` | PyTorch3D reference data | <1 MB |
+| `pytorch3d/tests/pulsar/reference/nr0000-out.pth` | PyTorch3D reference data | <1 MB |
+| `pytorch3d/tests/data/icp_data.pth` | PyTorch3D ICP sample | <1 MB |
+| `pytorch3d/docs/tutorials/data/camera_graph.pth` | PyTorch3D tutorial sample | <1 MB |
+| `VITON-HD/checkpoints/seg_final.pth` | VITON-HD segmentation model | ~260 MB |
+| `VITON-HD/checkpoints/gmm_final.pth` | VITON-HD GMM model | ~190 MB |
+| `VITON-HD/checkpoints/alias_final.pth` | VITON-HD alias generator | ~1.1 GB |
+
+Expect to allocate roughly **3 GB** of space for these files.
 
 ## Running
 
