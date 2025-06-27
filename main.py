@@ -141,7 +141,9 @@ async def handle_uniform_selection(callback_query: types.CallbackQuery, state: F
 
     try:
         clear_memory()
-        result_path = virtual_try_on(person_path, uniform_path)
+        result_path = await asyncio.to_thread(
+            virtual_try_on, person_path, uniform_path
+        )
         
         if result_path and os.path.exists(result_path):
             logger.info(f"Try-on successful: {result_path}")
