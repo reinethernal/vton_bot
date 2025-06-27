@@ -25,6 +25,9 @@ else
         "libprotobuf-dev=${proto_pkg_ver}" "protobuf-compiler=${proto_pkg_ver}"
 fi
 
+# Report which protoc will be used and its version
+echo "Using protoc: $(which protoc) ($(protoc --version || echo unknown))"
+
 # Extract upstream version (strip epoch and revision) for source builds.
 proto_src_ver=$(echo "$proto_pkg_ver" | cut -d'-' -f1 | cut -d':' -f2)
 
@@ -49,7 +52,8 @@ fi
 cd openpose
 git submodule update --init --recursive
 mkdir -p build && cd build
-cmake -DBUILD_PYTHON=ON -DBUILD_EXAMPLES=OFF ..
+cmake -DBUILD_PYTHON=ON -DBUILD_EXAMPLES=OFF \
+    -DPROTOBUF_PROTOC_EXECUTABLE=/usr/bin/protoc ..
 make -j"$(nproc)"
 # Install the library system-wide and expose the Python module globally.
 sudo make install
