@@ -140,18 +140,30 @@ class VTONPipeline:
             kp = pts_arr[0]
             mapping = {
                 "nose": 0,
-                "left_shoulder": 5,
+                "neck": 1,
                 "right_shoulder": 2,
-                "left_elbow": 6,
                 "right_elbow": 3,
-                "left_wrist": 7,
                 "right_wrist": 4,
-                "left_hip": 12,
+                "left_shoulder": 5,
+                "left_elbow": 6,
+                "left_wrist": 7,
+                "mid_hip": 8,
                 "right_hip": 9,
-                "left_knee": 13,
                 "right_knee": 10,
-                "left_ankle": 14,
                 "right_ankle": 11,
+                "left_hip": 12,
+                "left_knee": 13,
+                "left_ankle": 14,
+                "right_eye": 15,
+                "left_eye": 16,
+                "right_ear": 17,
+                "left_ear": 18,
+                "left_big_toe": 19,
+                "left_small_toe": 20,
+                "left_heel": 21,
+                "right_big_toe": 22,
+                "right_small_toe": 23,
+                "right_heel": 24,
             }
             pts = {k: tuple(kp[i, :2].astype(int)) for k, i in mapping.items()}
             return pts
@@ -164,6 +176,10 @@ class VTONPipeline:
             idx = self.mp.solutions.pose.PoseLandmark  # type: ignore[attr-defined]
             mapping = {
                 "nose": idx.NOSE,
+                "left_eye": idx.LEFT_EYE,
+                "right_eye": idx.RIGHT_EYE,
+                "left_ear": idx.LEFT_EAR,
+                "right_ear": idx.RIGHT_EAR,
                 "left_shoulder": idx.LEFT_SHOULDER,
                 "right_shoulder": idx.RIGHT_SHOULDER,
                 "left_elbow": idx.LEFT_ELBOW,
@@ -176,6 +192,10 @@ class VTONPipeline:
                 "right_knee": idx.RIGHT_KNEE,
                 "left_ankle": idx.LEFT_ANKLE,
                 "right_ankle": idx.RIGHT_ANKLE,
+                "left_heel": idx.LEFT_HEEL,
+                "right_heel": idx.RIGHT_HEEL,
+                "left_big_toe": idx.LEFT_FOOT_INDEX,
+                "right_big_toe": idx.RIGHT_FOOT_INDEX,
             }
             pts = {}
             for name, landmark_idx in mapping.items():
@@ -183,6 +203,17 @@ class VTONPipeline:
                 if lm_pt.visibility < 0.5:
                     return None
                 pts[name] = (int(lm_pt.x * w), int(lm_pt.y * h))
+            # Derived points not directly provided by mediapipe
+            pts["left_small_toe"] = pts["left_big_toe"]
+            pts["right_small_toe"] = pts["right_big_toe"]
+            pts["neck"] = (
+                int((pts["left_shoulder"][0] + pts["right_shoulder"][0]) / 2),
+                int((pts["left_shoulder"][1] + pts["right_shoulder"][1]) / 2),
+            )
+            pts["mid_hip"] = (
+                int((pts["left_hip"][0] + pts["right_hip"][0]) / 2),
+                int((pts["left_hip"][1] + pts["right_hip"][1]) / 2),
+            )
             return pts
 
     def get_cloth_keypoints(self, cloth: np.ndarray, mask: np.ndarray):
@@ -213,36 +244,60 @@ class VTONPipeline:
 
         return {
             "nose": pt(x + w * 0.5, y),
-            "left_shoulder": pt(x + w * 0.1, y + h * 0.25),
+            "neck": pt(x + w * 0.5, y + h * 0.2),
             "right_shoulder": pt(x + w * 0.9, y + h * 0.25),
-            "left_elbow": pt(x + w * 0.05, y + h * 0.5),
             "right_elbow": pt(x + w * 0.95, y + h * 0.5),
-            "left_wrist": pt(x, y + h * 0.75),
             "right_wrist": pt(x + w, y + h * 0.75),
-            "left_hip": pt(x + w * 0.25, y + h),
+            "left_shoulder": pt(x + w * 0.1, y + h * 0.25),
+            "left_elbow": pt(x + w * 0.05, y + h * 0.5),
+            "left_wrist": pt(x, y + h * 0.75),
+            "mid_hip": pt(x + w * 0.5, y + h * 0.9),
             "right_hip": pt(x + w * 0.75, y + h),
-            "left_knee": pt(x + w * 0.25, y + h * 1.25),
             "right_knee": pt(x + w * 0.75, y + h * 1.25),
-            "left_ankle": pt(x + w * 0.25, y + h * 1.5),
             "right_ankle": pt(x + w * 0.75, y + h * 1.5),
+            "left_hip": pt(x + w * 0.25, y + h),
+            "left_knee": pt(x + w * 0.25, y + h * 1.25),
+            "left_ankle": pt(x + w * 0.25, y + h * 1.5),
+            "right_eye": pt(x + w * 0.55, y - h * 0.05),
+            "left_eye": pt(x + w * 0.45, y - h * 0.05),
+            "right_ear": pt(x + w * 0.65, y + h * 0.05),
+            "left_ear": pt(x + w * 0.35, y + h * 0.05),
+            "left_big_toe": pt(x + w * 0.3, y + h * 1.7),
+            "left_small_toe": pt(x + w * 0.2, y + h * 1.7),
+            "left_heel": pt(x + w * 0.25, y + h * 1.5),
+            "right_big_toe": pt(x + w * 0.8, y + h * 1.7),
+            "right_small_toe": pt(x + w * 0.7, y + h * 1.7),
+            "right_heel": pt(x + w * 0.75, y + h * 1.5),
         }
 
     def warp(self, cloth, mask, src_pts, dst_pts, person_shape=None):
         """Piecewise-affine warp with fallback to simple scaling."""
         keys = [
             "nose",
-            "left_shoulder",
+            "neck",
             "right_shoulder",
-            "left_elbow",
             "right_elbow",
-            "left_wrist",
             "right_wrist",
-            "left_hip",
+            "left_shoulder",
+            "left_elbow",
+            "left_wrist",
+            "mid_hip",
             "right_hip",
-            "left_knee",
             "right_knee",
-            "left_ankle",
             "right_ankle",
+            "left_hip",
+            "left_knee",
+            "left_ankle",
+            "right_eye",
+            "left_eye",
+            "right_ear",
+            "left_ear",
+            "left_big_toe",
+            "left_small_toe",
+            "left_heel",
+            "right_big_toe",
+            "right_small_toe",
+            "right_heel",
         ]
         src = np.array([src_pts[k] for k in keys if k in src_pts], dtype=np.float32)
         dst = np.array([dst_pts[k] for k in keys if k in dst_pts], dtype=np.float32)
