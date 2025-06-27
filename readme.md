@@ -45,7 +45,7 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
    Create the `pytorch-openpose/model/` directory if it does not already exist, and
    place the other model files under `models/` as listed in the table below.
 
-4. *(Optional)* Build the OpenPose Python module. Ensure that the system package providing `google/protobuf/runtime_version.h` (`libprotobuf-dev` on Ubuntu) is installed. If it is missing or unavailable, compile protobuf from source so that its version matches the installed runtime library. Once this prerequisite is met, run `install_openpose_ubuntu.sh` from the repository root.
+4. *(Optional)* Build the OpenPose Python module. Ensure that the system package providing `google/protobuf/runtime_version.h` (`libprotobuf-dev` on Ubuntu) is installed. If it is missing or unavailable, compile protobuf from source so that its version matches the installed runtime library. Once this prerequisite is met, run `install_openpose_ubuntu.sh` from the repository root. After the build completes, run `sudo make install` and then `python3 -m pip install -e python` inside the `pytorch-openpose` directory. This installs the Python bindings required for `VTONPipeline` to load OpenPose.
 
 
 5. *(Optional)* Gather pretrained checkpoints into a single directory:
