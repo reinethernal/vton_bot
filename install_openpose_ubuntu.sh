@@ -5,14 +5,25 @@ set -euo pipefail
 # The script installs required dependencies, ensures protobuf headers are
 # available and builds OpenPose from source with matching protobuf versions.
 
+
 sudo apt-get update
 
-# Discover the candidate protobuf version available from APT.
+# Discover the candidate protobuf version available from APT. Some Ubuntu
+# images may not offer libprotobuf-dev directly, returning an empty or '(none)'
+# candidate. In that case fall back to libprotoc-dev and determine its version
+# after installation.
 proto_pkg_ver=$(apt-cache policy libprotobuf-dev | awk '/Candidate:/ {print $2}')
 
-sudo apt-get install -y build-essential cmake git libopencv-dev \
-    libgoogle-glog-dev libatlas-base-dev \
-    "libprotobuf-dev=${proto_pkg_ver}" "protobuf-compiler=${proto_pkg_ver}"
+if [ -z "${proto_pkg_ver}" ] || [ "${proto_pkg_ver}" = "(none)" ]; then
+    echo "libprotobuf-dev not available; using libprotoc-dev instead"
+    sudo apt-get install -y build-essential cmake git libopencv-dev \
+        libgoogle-glog-dev libatlas-base-dev libprotoc-dev
+    proto_pkg_ver=$(dpkg -s libprotoc-dev | awk '/^Version:/ {print $2}')
+else
+    sudo apt-get install -y build-essential cmake git libopencv-dev \
+        libgoogle-glog-dev libatlas-base-dev \
+        "libprotobuf-dev=${proto_pkg_ver}" "protobuf-compiler=${proto_pkg_ver}"
+fi
 
 # Extract upstream version (strip epoch and revision) for source builds.
 proto_src_ver=$(echo "$proto_pkg_ver" | cut -d'-' -f1 | cut -d':' -f2)
