@@ -51,5 +51,8 @@ git submodule update --init --recursive
 mkdir -p build && cd build
 cmake -DBUILD_PYTHON=ON -DBUILD_EXAMPLES=OFF ..
 make -j"$(nproc)"
-# The Python module will be available under build/python.
+# Install the library system-wide and expose the Python module globally.
+sudo make install
+cd ..
+python3 -m pip install -e python
 
