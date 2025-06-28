@@ -43,7 +43,10 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
    ```
 
    Create the `pytorch-openpose/model/` directory if it does not already exist, and
-   place the other model files under `models/` as listed in the table below.
+   place the other model files under `models/` as listed in the table below. If you
+   store the OpenPose weights elsewhere, set the `OPENPOSE_MODEL_DIR` environment
+   variable to the directory containing `body_pose_model.pth` so that
+   `VTONPipeline` can locate them.
 
 4. *(Optional)* Build the OpenPose Python module. Ensure that the system package
    providing `google/protobuf/runtime_version.h` (`libprotobuf-dev` on Ubuntu) is

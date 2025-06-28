@@ -71,10 +71,12 @@ class VTONPipeline:
 
         # Attempt to use OpenPose BODY_25 for pose estimation. The model
         # weights are referenced relative to the repository root, matching
-        # the paths used in collect_checkpoints.py. If OpenPose or its
-        # weights are unavailable, fall back to Mediapipe.
-        self.openpose_body = Path("pytorch-openpose/model/body_pose_model.pth")
-        self.openpose_hand = Path("pytorch-openpose/model/hand_pose_model.pth")
+        # the paths used in collect_checkpoints.py. The directory can be
+        # overridden with the ``OPENPOSE_MODEL_DIR`` environment variable.
+        # If OpenPose or its weights are unavailable, fall back to Mediapipe.
+        model_dir = Path(os.environ.get("OPENPOSE_MODEL_DIR", "pytorch-openpose/model"))
+        self.openpose_body = model_dir / "body_pose_model.pth"
+        self.openpose_hand = model_dir / "hand_pose_model.pth"
         self.pose_backend = "mediapipe"
         try:  # pragma: no cover - optional heavy deps
             from openpose import pyopenpose as op  # type: ignore
