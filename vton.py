@@ -127,7 +127,13 @@ class VTONPipeline:
         if self.pose_backend == "openpose":  # pragma: no cover - heavy path
             datum = self.op.Datum()  # type: ignore[attr-defined]
             datum.cvInputData = img
-            self.op_wrapper.emplaceAndPop([datum])
+            # Explicitly wrap the datum list using VectorDatum for
+            # compatibility with builds lacking automatic STL bindings.
+            try:
+                datums = self.op.VectorDatum([datum])
+            except AttributeError:
+                datums = [datum]
+            self.op_wrapper.emplaceAndPop(datums)
             pts_arr = datum.poseKeypoints
             if pts_arr is None or pts_arr.size == 0:
                 return None
