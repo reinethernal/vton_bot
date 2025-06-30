@@ -34,15 +34,15 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 
    ```bash
    # BODY_25 (~200 MB)
-   gdown https://drive.google.com/uc?id=1EULkcH_hhSU28qVc1jSJpCh2hGOrzpjK -O \
-       pytorch-openpose/model/body_pose_model.pth
+    gdown https://drive.google.com/uc?id=1EULkcH_hhSU28qVc1jSJpCh2hGOrzpjK -O \
+        openpose/models/body_pose_model.pth
 
    # Hand (~25 MB)
-   gdown https://drive.google.com/uc?id=1yVyIsOD32Mq28EHrVVlZbISDN7Icgaxw -O \
-       pytorch-openpose/model/hand_pose_model.pth
+    gdown https://drive.google.com/uc?id=1yVyIsOD32Mq28EHrVVlZbISDN7Icgaxw -O \
+        openpose/models/hand_pose_model.pth
    ```
 
-   Create the `pytorch-openpose/model/` directory if it does not already exist, and
+   Create the `openpose/models/` directory if it does not already exist, and
    place the other model files under `models/` as listed in the table below. If you
    store the OpenPose weights elsewhere, set the `OPENPOSE_MODEL_DIR` environment
    variable to the directory containing `body_pose_model.pth` so that
@@ -61,7 +61,7 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 
    Once the prerequisite headers are present, run `install_openpose_ubuntu.sh`
    from the repository root. After the build completes, run `sudo make install`
-   and then `python3 -m pip install -e python` inside the `pytorch-openpose`
+   and then `python3 -m pip install -e python` inside the `openpose`
    directory. This installs the Python bindings required for `VTONPipeline` to
    load OpenPose.
 
@@ -80,8 +80,8 @@ required model files:
 
 | Path | Description | Approx. size |
 | --- | --- | --- |
-| `pytorch-openpose/model/body_pose_model.pth` | OpenPose BODY\_25 weights | ~200 MB |
-| `pytorch-openpose/model/hand_pose_model.pth` | OpenPose hand weights | ~25 MB |
+| `openpose/models/body_pose_model.pth` | OpenPose BODY\_25 weights | ~200 MB |
+| `openpose/models/hand_pose_model.pth` | OpenPose hand weights | ~25 MB |
 | `models/u2net.pth` | U\^2-Net base model | ~170 MB |
 | `models/cloth_segm_u2net_latest.pth` | U\^2-Net garment segmentation | ~170 MB |
 | `models/CatVTON/SCHP/exp-schp-201908261155-lip.pth` | CatVTON human parsing (LIP) | ~250 MB |
