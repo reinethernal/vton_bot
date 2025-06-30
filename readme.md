@@ -24,7 +24,7 @@ as the NVIDIA RTX A4000.
 
    ```env
    BOT_TOKEN=123456:ABCDEF
-UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
+   UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
 ```
 
 3. Download the pretrained model checkpoints. The U^2-Net models are available on the
