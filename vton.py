@@ -76,8 +76,11 @@ class VTONPipeline:
         try:  # pragma: no cover - optional heavy deps
             from openpose import pyopenpose as op  # type: ignore
 
+            model_dir = os.environ.get("OPENPOSE_MODEL_DIR")
+            if model_dir is None:
+                model_dir = str(Path(__file__).resolve().parent / "openpose" / "models")
             params = {
-                "model_folder": str(Path(__file__).resolve().parent / "openpose" / "models"),
+                "model_folder": model_dir,
                 "model_pose": "BODY_25",
             }
             self.op = op
