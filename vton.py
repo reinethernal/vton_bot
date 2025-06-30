@@ -89,12 +89,24 @@ class VTONPipeline:
             self.op_wrapper.start()
             self.pose_backend = "openpose"
             logger.info("OpenPose успешно загружен из %s", params["model_folder"])
+
+            # Initialize Mediapipe as a fallback if available
+            try:
+                import mediapipe as mp
+
+                self.mp = mp
+                self.mp_pose = self.mp.solutions.pose.Pose(static_image_mode=True)
+            except ImportError:  # pragma: no cover - optional dep
+                self.mp = None
+                self.mp_pose = None
         except ImportError:
             import mediapipe as mp
 
             self.mp = mp
             self.mp_pose = self.mp.solutions.pose.Pose(static_image_mode=True)
             self.pose_backend = "mediapipe"
+            self.op = None
+            self.op_wrapper = None
             logger.warning("OpenPose не доступен; перехожу на Mediapipe")
 
         # transforms
@@ -139,6 +151,9 @@ class VTONPipeline:
             self.op_wrapper.emplaceAndPop(datums)
             pts_arr = datum.poseKeypoints
             if pts_arr is None or pts_arr.size == 0:
+                if self.mp_pose is not None:
+                    logger.warning("OpenPose failed, falling back to Mediapipe")
+                    return self._extract_keypoints_mp(img)
                 return None
             kp = pts_arr[0]
             mapping = {
@@ -171,53 +186,57 @@ class VTONPipeline:
             pts = {k: tuple(kp[i, :2].astype(int)) for k, i in mapping.items()}
             return pts
         else:
-            results = self.mp_pose.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-            lm = results.pose_landmarks
-            if not lm:
+            return self._extract_keypoints_mp(img)
+
+    def _extract_keypoints_mp(self, img: np.ndarray):
+        """Mediapipe-based keypoint extraction."""
+        results = self.mp_pose.process(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        lm = results.pose_landmarks
+        if not lm:
+            return None
+        h, w = img.shape[:2]
+        idx = self.mp.solutions.pose.PoseLandmark  # type: ignore[attr-defined]
+        mapping = {
+            "nose": idx.NOSE,
+            "left_eye": idx.LEFT_EYE,
+            "right_eye": idx.RIGHT_EYE,
+            "left_ear": idx.LEFT_EAR,
+            "right_ear": idx.RIGHT_EAR,
+            "left_shoulder": idx.LEFT_SHOULDER,
+            "right_shoulder": idx.RIGHT_SHOULDER,
+            "left_elbow": idx.LEFT_ELBOW,
+            "right_elbow": idx.RIGHT_ELBOW,
+            "left_wrist": idx.LEFT_WRIST,
+            "right_wrist": idx.RIGHT_WRIST,
+            "left_hip": idx.LEFT_HIP,
+            "right_hip": idx.RIGHT_HIP,
+            "left_knee": idx.LEFT_KNEE,
+            "right_knee": idx.RIGHT_KNEE,
+            "left_ankle": idx.LEFT_ANKLE,
+            "right_ankle": idx.RIGHT_ANKLE,
+            "left_heel": idx.LEFT_HEEL,
+            "right_heel": idx.RIGHT_HEEL,
+            "left_big_toe": idx.LEFT_FOOT_INDEX,
+            "right_big_toe": idx.RIGHT_FOOT_INDEX,
+        }
+        pts = {}
+        for name, landmark_idx in mapping.items():
+            lm_pt = lm.landmark[landmark_idx]
+            if lm_pt.visibility < 0.5:
                 return None
-            h, w = img.shape[:2]
-            idx = self.mp.solutions.pose.PoseLandmark  # type: ignore[attr-defined]
-            mapping = {
-                "nose": idx.NOSE,
-                "left_eye": idx.LEFT_EYE,
-                "right_eye": idx.RIGHT_EYE,
-                "left_ear": idx.LEFT_EAR,
-                "right_ear": idx.RIGHT_EAR,
-                "left_shoulder": idx.LEFT_SHOULDER,
-                "right_shoulder": idx.RIGHT_SHOULDER,
-                "left_elbow": idx.LEFT_ELBOW,
-                "right_elbow": idx.RIGHT_ELBOW,
-                "left_wrist": idx.LEFT_WRIST,
-                "right_wrist": idx.RIGHT_WRIST,
-                "left_hip": idx.LEFT_HIP,
-                "right_hip": idx.RIGHT_HIP,
-                "left_knee": idx.LEFT_KNEE,
-                "right_knee": idx.RIGHT_KNEE,
-                "left_ankle": idx.LEFT_ANKLE,
-                "right_ankle": idx.RIGHT_ANKLE,
-                "left_heel": idx.LEFT_HEEL,
-                "right_heel": idx.RIGHT_HEEL,
-                "left_big_toe": idx.LEFT_FOOT_INDEX,
-                "right_big_toe": idx.RIGHT_FOOT_INDEX,
-            }
-            pts = {}
-            for name, landmark_idx in mapping.items():
-                lm_pt = lm.landmark[landmark_idx]
-                if lm_pt.visibility < 0.5:
-                    return None
-                pts[name] = (int(lm_pt.x * w), int(lm_pt.y * h))
-            # Derived points not directly provided by mediapipe
-            pts["left_small_toe"] = pts["left_big_toe"]
-            pts["right_small_toe"] = pts["right_big_toe"]
-            pts["neck"] = (
-                int((pts["left_shoulder"][0] + pts["right_shoulder"][0]) / 2),
-                int((pts["left_shoulder"][1] + pts["right_shoulder"][1]) / 2),
-            )
-            pts["mid_hip"] = (
-                int((pts["left_hip"][0] + pts["right_hip"][0]) / 2),
-                int((pts["left_hip"][1] + pts["right_hip"][1]) / 2),
-            )
-            return pts
+            pts[name] = (int(lm_pt.x * w), int(lm_pt.y * h))
+        # Derived points not directly provided by mediapipe
+        pts["left_small_toe"] = pts["left_big_toe"]
+        pts["right_small_toe"] = pts["right_big_toe"]
+        pts["neck"] = (
+            int((pts["left_shoulder"][0] + pts["right_shoulder"][0]) / 2),
+            int((pts["left_shoulder"][1] + pts["right_shoulder"][1]) / 2),
+        )
+        pts["mid_hip"] = (
+            int((pts["left_hip"][0] + pts["right_hip"][0]) / 2),
+            int((pts["left_hip"][1] + pts["right_hip"][1]) / 2),
+        )
+        return pts
 
     def get_cloth_keypoints(self, cloth: np.ndarray, mask: np.ndarray):
         """Return cloth keypoints using OpenPose with bbox fallback.

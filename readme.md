@@ -63,7 +63,10 @@ UNIFORMS={"Uniform 1": "static/uniforms/uniform1.png"}
    from the repository root. After the build completes, run `sudo make install`
    and then `python3 -m pip install -e python` inside the `openpose`
    directory. This installs the Python bindings required for `VTONPipeline` to
-   load OpenPose.
+   load OpenPose. If OpenPose is installed but fails to produce keypoints for an
+   image, the pipeline will automatically fall back to Mediapipe when it is
+   available. Installing Mediapipe is therefore recommended to avoid errors like
+   `Keypoint extraction failed` when OpenPose struggles with a particular photo.
 
 
 5. *(Optional)* Gather pretrained checkpoints into a single directory:

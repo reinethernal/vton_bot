@@ -55,3 +55,29 @@ def test_invalid_segmentation_model():
         pytest.skip("torch not available")
     with pytest.raises(ValueError):
         VTONPipeline(segmentation_model="foo")
+
+
+def test_extract_keypoints_fallback(monkeypatch):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+    pipe.pose_backend = "openpose"
+    pipe.op = type("Op", (), {"Datum": lambda self=None: type("Datum", (), {})(),
+                               "VectorDatum": lambda self, arr: arr})()
+    pipe.op_wrapper = type("Wrapper", (), {"emplaceAndPop": lambda self, d: None})()
+
+    fallback_called = False
+
+    def fake_mp(img):
+        nonlocal fallback_called
+        fallback_called = True
+        return {"nose": (0, 0)}
+
+    monkeypatch.setattr(pipe, "mp_pose", object(), raising=False)
+    monkeypatch.setattr(pipe, "_extract_keypoints_mp", fake_mp)
+
+    datum = pipe.op.Datum()
+    datum.poseKeypoints = None
+    monkeypatch.setattr(pipe.op, "Datum", lambda: datum)
+
+    result = pipe.extract_keypoints(np.zeros((1, 1, 3), dtype=np.uint8))
+    assert fallback_called
+    assert result == {"nose": (0, 0)}
