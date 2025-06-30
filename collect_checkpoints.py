@@ -23,8 +23,8 @@ os.makedirs(TARGET_DIR, exist_ok=True)
 
 # Список исходных путей (из вашего find)
 source_paths = [
-    "./pytorch-openpose/model/body_pose_model.pth",
-    "./pytorch-openpose/model/hand_pose_model.pth",
+    "./openpose/models/body_pose_model.pth",
+    "./openpose/models/hand_pose_model.pth",
     "./models/u2net.pth",
     "./models/cloth_segm_u2net_latest.pth",
     "./models/CatVTON/SCHP/exp-schp-201908261155-lip.pth",
