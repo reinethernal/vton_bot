@@ -69,38 +69,30 @@ class VTONPipeline:
         else:
             raise ValueError(f"Unknown segmentation model: {segmentation_model}")
 
-        # Attempt to use OpenPose BODY_25 for pose estimation. The model
-        # weights are referenced relative to the repository root, matching
-        # the paths used in collect_checkpoints.py. The directory can be
-        # overridden with the ``OPENPOSE_MODEL_DIR`` environment variable.
-        # If OpenPose or its weights are unavailable, fall back to Mediapipe.
-        model_dir = Path(os.environ.get("OPENPOSE_MODEL_DIR", "pytorch-openpose/model"))
-        self.openpose_body = model_dir / "body_pose_model.pth"
-        self.openpose_hand = model_dir / "hand_pose_model.pth"
-        self.pose_backend = "mediapipe"
+        # Initialize OpenPose BODY_25 pose estimation unconditionally if the
+        # Python bindings are available. The OpenPose models are expected to be
+        # located under ``openpose/models`` relative to this file. If the
+        # bindings cannot be imported, we fall back to Mediapipe.
         try:  # pragma: no cover - optional heavy deps
             from openpose import pyopenpose as op  # type: ignore
-            if self.openpose_body.exists():
-                params = {
-                    "model_folder": str(self.openpose_body.parent),
-                    "model_pose": "BODY_25",
-                }
-                self.op = op
-                self.op_wrapper = op.WrapperPython()
-                self.op_wrapper.configure(params)
-                self.op_wrapper.start()
-                self.pose_backend = "openpose"
-                logger.info("OpenPose loaded from %s", self.openpose_body)
-            else:
-                raise FileNotFoundError
-        except Exception:
+
+            params = {
+                "model_folder": str(Path(__file__).resolve().parent / "openpose" / "models"),
+                "model_pose": "BODY_25",
+            }
+            self.op = op
+            self.op_wrapper = op.WrapperPython()
+            self.op_wrapper.configure(params)
+            self.op_wrapper.start()
+            self.pose_backend = "openpose"
+            logger.info("OpenPose успешно загружен из %s", params["model_folder"])
+        except ImportError:
             import mediapipe as mp
 
             self.mp = mp
             self.mp_pose = self.mp.solutions.pose.Pose(static_image_mode=True)
-            logger.warning(
-                "OpenPose not available; falling back to Mediapipe pose"
-            )
+            self.pose_backend = "mediapipe"
+            logger.warning("OpenPose не доступен; перехожу на Mediapipe")
 
         # transforms
         self.to_tensor = transforms.ToTensor()
