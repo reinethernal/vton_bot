@@ -4,6 +4,7 @@ import asyncio
 import json
 import gc
 import psutil
+import cv2
 import torch
 import sys
 from aiogram import Bot, Dispatcher, types, F, __version__ as aiogram_version
@@ -13,6 +14,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.types.input_file import FSInputFile
 from dotenv import load_dotenv
+from aiogram.filters import Command
 from vton import virtual_try_on
 
 # Load environment variables
@@ -105,11 +107,38 @@ async def handle_initial_person_photo(message: types.Message, state: FSMContext)
         
         await message.answer("✅ Фото сохранено! Теперь выберите форму для примерки:", reply_markup=keyboard)
         await state.set_state(TryOnProcess.waiting_for_uniform_selection)
-        
+
     except Exception as e:
         logger.error(f"Error handling photo: {e}")
         await message.reply("❌ Произошла ошибка при обработке фото. Попробуйте еще раз.")
         await state.clear()
+
+
+@dp.message(Command("rotate"))
+async def rotate_person_photo(message: types.Message, state: FSMContext):
+    """Rotate the saved user photo."""
+    user_data = await state.get_data()
+    person_path = user_data.get("person_path")
+    if not person_path or not os.path.exists(person_path):
+        await message.reply("❌ Нет фотографии для поворота. Сначала отправьте фото.")
+        return
+
+    direction = "right"
+    parts = message.text.split(maxsplit=1)
+    if len(parts) > 1:
+        direction = parts[1].lower()
+    if direction not in {"right", "left"}:
+        await message.reply("❌ Укажите направление: /rotate [right|left]")
+        return
+
+    img = cv2.imread(person_path)
+    if img is None:
+        await message.reply("❌ Ошибка при загрузке фото.")
+        return
+    code = cv2.ROTATE_90_CLOCKWISE if direction == "right" else cv2.ROTATE_90_COUNTERCLOCKWISE
+    rotated = cv2.rotate(img, code)
+    cv2.imwrite(person_path, rotated)
+    await message.reply("🔄 Фото повернуто.")
 
 @dp.callback_query(F.data.startswith("select_uniform_"), TryOnProcess.waiting_for_uniform_selection)
 async def handle_uniform_selection(callback_query: types.CallbackQuery, state: FSMContext):
