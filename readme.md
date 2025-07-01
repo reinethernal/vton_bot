@@ -70,6 +70,10 @@ as the NVIDIA RTX A4000.
    therefore recommended to avoid errors like `Keypoint extraction failed` when
    OpenPose struggles with a particular photo.
 
+   Mediapipe 0.10 changed the Pose API to use `mp.Image` objects instead of
+   plain NumPy arrays. `VTONPipeline` detects the supported input type at runtime
+   so either version will work.
+
 
 5. *(Optional)* Gather pretrained checkpoints into a single directory:
 

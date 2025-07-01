@@ -129,3 +129,75 @@ def test_warp_fallback_error(monkeypatch, caplog):
     assert out_m.shape == mask.shape
     assert status == "error"
     assert "approximate overlay" in caplog.text.lower()
+
+
+def test_extract_keypoints_mp_new_api(monkeypatch):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+
+    class FakeImage:
+        def __init__(self, image_format=None, data=None):
+            self.image_format = image_format
+            self.data = data
+
+    mp_stub = type(
+        "mp",
+        (),
+        {
+            "Image": FakeImage,
+            "ImageFormat": type("Fmt", (), {"SRGB": object()}),
+            "solutions": type("sol", (), {"pose": type("p", (), {"PoseLandmark": {}})}),
+        },
+    )
+
+    calls = []
+
+    def process(self, arg):
+        calls.append(arg)
+        return type("Res", (), {"pose_landmarks": None})()
+
+    pipe.mp = mp_stub
+    pipe.mp_pose = type("Pose", (), {"process": process})()
+
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    assert pipe._extract_keypoints_mp(img) is None
+    assert len(calls) == 1
+    assert isinstance(calls[0], FakeImage)
+
+
+def test_extract_keypoints_mp_fallback(monkeypatch):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+
+    class FakeImage:
+        def __init__(self, image_format=None, data=None):
+            self.image_format = image_format
+            self.data = data
+
+    mp_stub = type(
+        "mp",
+        (),
+        {
+            "Image": FakeImage,
+            "ImageFormat": type("Fmt", (), {"SRGB": object()}),
+            "solutions": type("sol", (), {"pose": type("p", (), {"PoseLandmark": {}})}),
+        },
+    )
+
+    class Pose:
+        def __init__(self):
+            self.calls = []
+
+        def process(self, arg):
+            self.calls.append(arg)
+            if isinstance(arg, FakeImage):
+                raise AttributeError("object has no attribute 'shape'")
+            return type("Res", (), {"pose_landmarks": None})()
+
+    pose = Pose()
+    pipe.mp = mp_stub
+    pipe.mp_pose = pose
+
+    img = np.zeros((2, 2, 3), dtype=np.uint8)
+    assert pipe._extract_keypoints_mp(img) is None
+    assert len(pose.calls) == 2
+    assert isinstance(pose.calls[0], FakeImage)
+    assert isinstance(pose.calls[1], np.ndarray)
