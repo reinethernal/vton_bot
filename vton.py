@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
 import os
+# Suppress verbose logs from TensorFlow and Mediapipe
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+os.environ.setdefault("GLOG_minloglevel", "2")
+
+import absl.logging
+absl.logging.set_verbosity(absl.logging.ERROR)
+absl.logging._warn_preinit_stderr = False
+
 import cv2
 import numpy as np
 from pathlib import Path
