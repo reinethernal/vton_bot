@@ -151,8 +151,8 @@ def test_extract_keypoints_mp_new_api(monkeypatch):
 
     calls = []
 
-    def process(self, arg):
-        calls.append(arg)
+    def process(self, arg, **kwargs):
+        calls.append((arg, kwargs))
         return type("Res", (), {"pose_landmarks": None})()
 
     pipe.mp = mp_stub
@@ -161,7 +161,8 @@ def test_extract_keypoints_mp_new_api(monkeypatch):
     img = np.zeros((2, 2, 3), dtype=np.uint8)
     assert pipe._extract_keypoints_mp(img) is None
     assert len(calls) == 1
-    assert isinstance(calls[0], FakeImage)
+    assert isinstance(calls[0][0], FakeImage)
+    assert calls[0][1]["image_size"] == (2, 2)
 
 
 def test_extract_keypoints_mp_fallback(monkeypatch):
@@ -186,8 +187,8 @@ def test_extract_keypoints_mp_fallback(monkeypatch):
         def __init__(self):
             self.calls = []
 
-        def process(self, arg):
-            self.calls.append(arg)
+        def process(self, arg, **kwargs):
+            self.calls.append((arg, kwargs))
             if isinstance(arg, FakeImage):
                 raise AttributeError("object has no attribute 'shape'")
             return type("Res", (), {"pose_landmarks": None})()
@@ -199,5 +200,6 @@ def test_extract_keypoints_mp_fallback(monkeypatch):
     img = np.zeros((2, 2, 3), dtype=np.uint8)
     assert pipe._extract_keypoints_mp(img) is None
     assert len(pose.calls) == 2
-    assert isinstance(pose.calls[0], FakeImage)
-    assert isinstance(pose.calls[1], np.ndarray)
+    assert isinstance(pose.calls[0][0], FakeImage)
+    assert pose.calls[0][1]["image_size"] == (2, 2)
+    assert isinstance(pose.calls[1][0], np.ndarray)
