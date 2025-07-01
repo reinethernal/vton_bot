@@ -358,9 +358,6 @@ class VTONPipeline:
         ]
         src = np.array([src_pts[k] for k in keys if k in src_pts], dtype=np.float32)
         dst = np.array([dst_pts[k] for k in keys if k in dst_pts], dtype=np.float32)
-        if len(src) < 3 or len(dst) < 3:
-            raise RuntimeError("Not enough keypoints")
-        tfm = PiecewiseAffineTransform()
 
         def approx_overlay():
             if person_shape is None:
@@ -389,6 +386,33 @@ class VTONPipeline:
             out_mask[cy0:cy1, cx0:cx1] = scaled_mask
             return out_cloth, out_mask
 
+        # remove exact duplicate keypoint pairs while preserving order
+        if len(src) and len(dst):
+            pairs = np.hstack([src, dst])
+            _, idx = np.unique(pairs, axis=0, return_index=True)
+            idx.sort()
+            src = src[idx]
+            dst = dst[idx]
+
+        def non_collinear(pts):
+            if len(pts) < 3:
+                return False
+            p0 = pts[0]
+            for i in range(1, len(pts)):
+                for j in range(i + 1, len(pts)):
+                    if abs(np.cross(pts[i] - p0, pts[j] - p0)) > 1e-3:
+                        return True
+            return False
+
+        if len(src) < 3 or len(dst) < 3 or not non_collinear(src) or not non_collinear(dst):
+            logger.warning(
+                "Not enough unique non-collinear keypoints. Using approximate overlay."
+            )
+            status = "estimation_failed"
+            result = approx_overlay()
+            return (*result, status) if return_status else result
+
+        tfm = PiecewiseAffineTransform()
         status = "ok"
         try:
             if not tfm.estimate(src, dst):
