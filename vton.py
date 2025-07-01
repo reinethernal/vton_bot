@@ -201,7 +201,7 @@ class VTONPipeline:
         mp_image = self.mp.Image(
             self.mp.ImageFormat.SRGB, img[..., ::-1].copy()
         )
-        results = self.mp_pose.process(mp_image)
+        results = self.mp_pose.process(mp_image.numpy_view())
         lm = results.pose_landmarks
         if not lm:
             return None
