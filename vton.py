@@ -205,7 +205,7 @@ class VTONPipeline:
         """Mediapipe-based keypoint extraction."""
         # Mediapipe expects images in RGB order. Convert from BGR before
         # constructing the ``mp.Image`` instance to avoid orientation issues.
-        rgb = img[..., ::-1]
+        rgb = img[..., ::-1].copy()
 
         # ``self.mp_pose.process`` changed in Mediapipe 0.10 to accept
         # ``mp.Image`` instead of ``np.ndarray``. Try the new API first and
