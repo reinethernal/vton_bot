@@ -392,7 +392,7 @@ class VTONPipeline:
         try:
             if not tfm.estimate(src, dst):
                 logger.warning(
-                    "Warp estimation failed with %d src/%d dst points. Using approximate overlay.",
+                    "Warp estimation failed with %d source and %d destination points. Using approximate overlay.",
                     len(src),
                     len(dst),
                 )
