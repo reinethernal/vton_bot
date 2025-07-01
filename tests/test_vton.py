@@ -131,6 +131,64 @@ def test_warp_fallback_error(monkeypatch, caplog):
     assert "approximate overlay" in caplog.text.lower()
 
 
+def test_warp_duplicate_keypoints(monkeypatch, caplog):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+    cloth = np.ones((4, 4, 3), dtype=np.uint8)
+    mask = np.ones((4, 4), dtype=np.uint8)
+    src = {"nose": (0, 0), "neck": (0, 0), "left_shoulder": (1, 0)}
+    dst = {"nose": (1, 1), "neck": (1, 1), "left_shoulder": (2, 1)}
+
+    called = False
+
+    def fake_estimate(self, s, d):
+        nonlocal called
+        called = True
+        return True
+
+    monkeypatch.setattr(PiecewiseAffineTransform, "estimate", fake_estimate)
+    with caplog.at_level(logging.WARNING):
+        out_c, out_m, status = pipe.warp(
+            cloth, mask, src, dst, person_shape=(4, 4), return_status=True
+        )
+    assert out_c.shape == cloth.shape
+    assert out_m.shape == mask.shape
+    assert status == "estimation_failed"
+    assert not called
+
+
+def test_warp_collinear_points(monkeypatch, caplog):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+    cloth = np.ones((4, 4, 3), dtype=np.uint8)
+    mask = np.ones((4, 4), dtype=np.uint8)
+    src = {
+        "nose": (0, 0),
+        "neck": (1, 1),
+        "left_shoulder": (2, 2),
+    }
+    dst = {
+        "nose": (1, 1),
+        "neck": (2, 2),
+        "left_shoulder": (3, 3),
+    }
+
+    called = False
+
+    def fake_estimate(self, s, d):
+        nonlocal called
+        called = True
+        return True
+
+    monkeypatch.setattr(PiecewiseAffineTransform, "estimate", fake_estimate)
+    with caplog.at_level(logging.WARNING):
+        out_c, out_m, status = pipe.warp(
+            cloth, mask, src, dst, person_shape=(4, 4), return_status=True
+        )
+    assert out_c.shape == cloth.shape
+    assert out_m.shape == mask.shape
+    assert status == "estimation_failed"
+    assert not called
+
+
 def test_extract_keypoints_mp_new_api(monkeypatch):
     pipe = VTONPipeline.__new__(VTONPipeline)
 
