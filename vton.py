@@ -206,6 +206,7 @@ class VTONPipeline:
         # Mediapipe expects images in RGB order. Convert from BGR before
         # constructing the ``mp.Image`` instance to avoid orientation issues.
         rgb = img[..., ::-1].copy()
+        h, w = img.shape[:2]
 
         # ``self.mp_pose.process`` changed in Mediapipe 0.10 to accept
         # ``mp.Image`` instead of ``np.ndarray``. Try the new API first and
@@ -214,7 +215,7 @@ class VTONPipeline:
             mp_image = self.mp.Image(
                 image_format=self.mp.ImageFormat.SRGB, data=rgb
             )
-            results = self.mp_pose.process(mp_image)
+            results = self.mp_pose.process(mp_image, image_size=(w, h))
         except AttributeError as e:
             if "shape" not in str(e):
                 raise
