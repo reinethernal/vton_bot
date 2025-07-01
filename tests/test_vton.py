@@ -96,10 +96,14 @@ def test_warp_fallback_estimation(monkeypatch, caplog):
 
     monkeypatch.setattr(PiecewiseAffineTransform, "estimate", lambda self, s, d: False)
     with caplog.at_level(logging.WARNING):
-        out_c, out_m = pipe.warp(cloth, mask, src, dst, person_shape=(4, 4))
+        out_c, out_m, status = pipe.warp(
+            cloth, mask, src, dst, person_shape=(4, 4), return_status=True
+        )
     assert out_c.shape == cloth.shape
     assert out_m.shape == mask.shape
+    assert status == "estimation_failed"
     assert "approximate overlay" in caplog.text.lower()
+    assert "3 src/3 dst" in caplog.text
 
 
 def test_warp_fallback_error(monkeypatch, caplog):
@@ -118,7 +122,10 @@ def test_warp_fallback_error(monkeypatch, caplog):
     )
 
     with caplog.at_level(logging.WARNING):
-        out_c, out_m = pipe.warp(cloth, mask, src, dst, person_shape=(4, 4))
+        out_c, out_m, status = pipe.warp(
+            cloth, mask, src, dst, person_shape=(4, 4), return_status=True
+        )
     assert out_c.shape == cloth.shape
     assert out_m.shape == mask.shape
+    assert status == "error"
     assert "approximate overlay" in caplog.text.lower()

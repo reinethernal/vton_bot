@@ -313,8 +313,14 @@ class VTONPipeline:
             "right_heel": pt(x + w * 0.75, y + h * 1.5),
         }
 
-    def warp(self, cloth, mask, src_pts, dst_pts, person_shape=None):
-        """Piecewise-affine warp with fallback to simple scaling."""
+    def warp(self, cloth, mask, src_pts, dst_pts, person_shape=None, *, return_status=False):
+        """Piecewise-affine warp with fallback to simple scaling.
+
+        If ``return_status`` is ``True`` an extra string is returned
+        indicating whether the warp succeeded (``"ok"``), failed during
+        estimation (``"estimation_failed"``) or another error occurred
+        (``"error"``).
+        """
         keys = [
             "nose",
             "neck",
@@ -375,31 +381,45 @@ class VTONPipeline:
             out_mask[cy0:cy1, cx0:cx1] = scaled_mask
             return out_cloth, out_mask
 
+        status = "ok"
         try:
             if not tfm.estimate(src, dst):
-                logger.warning("Warp estimation failed. Using approximate overlay.")
-                return approx_overlay()
+                logger.warning(
+                    "Warp estimation failed with %d src/%d dst points. Using approximate overlay.",
+                    len(src),
+                    len(dst),
+                )
+                status = "estimation_failed"
+                result = approx_overlay()
+                return (*result, status) if return_status else result
 
             fwd_pts = tfm(src)
             inv_pts = tfm.inverse(dst)
             if not (np.all(np.isfinite(fwd_pts)) and np.all(np.isfinite(inv_pts))):
                 logger.warning("Warp transform invalid. Using approximate overlay.")
-                return approx_overlay()
+                status = "error"
+                result = approx_overlay()
+                return (*result, status) if return_status else result
 
             fwd_err = np.linalg.norm(fwd_pts - dst, axis=1)
             inv_err = np.linalg.norm(inv_pts - src, axis=1)
             if np.any(fwd_err > 10) or np.any(inv_err > 10):
                 logger.warning("Warp error too large. Using approximate overlay.")
-                return approx_overlay()
+                status = "error"
+                result = approx_overlay()
+                return (*result, status) if return_status else result
 
             ci = cloth.astype(np.float32)/255.0
             cm = mask.astype(np.float32)/255.0
             wi = warp(ci, tfm, output_shape=ci.shape)
             wm = warp(cm, tfm, output_shape=cm.shape)
-            return (wi*255).astype(np.uint8), (wm>0.5).astype(np.uint8)*255
+            result = ((wi*255).astype(np.uint8), (wm>0.5).astype(np.uint8)*255)
+            return (*result, status) if return_status else result
         except Exception as e:
             logger.warning("Warp failed (%s). Using approximate overlay.", e)
-            return approx_overlay()
+            status = "error"
+            result = approx_overlay()
+            return (*result, status) if return_status else result
 
     def blend(self, person, cloth, mask):
         """Простое alpha-blend наложение."""
