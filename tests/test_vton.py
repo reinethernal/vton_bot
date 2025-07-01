@@ -103,7 +103,7 @@ def test_warp_fallback_estimation(monkeypatch, caplog):
     assert out_m.shape == mask.shape
     assert status == "estimation_failed"
     assert "approximate overlay" in caplog.text.lower()
-    assert "3 src/3 dst" in caplog.text
+    assert "3 source" in caplog.text and "3 destination" in caplog.text
 
 
 def test_warp_fallback_error(monkeypatch, caplog):
