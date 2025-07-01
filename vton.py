@@ -164,9 +164,7 @@ class VTONPipeline:
                         "OpenPose" if self.pose_backend == "openpose" else self.pose_backend
                     )
                     logger.warning(
-                        "%s detected no keypoints on %s; switching to Mediapipe",
-                        backend_name,
-                        img.shape,
+                        f"{backend_name} detected no keypoints on {img.shape}; switching to Mediapipe"
                     )
                     return self._extract_keypoints_mp(img)
                 return None
