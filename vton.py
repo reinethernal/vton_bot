@@ -199,7 +199,7 @@ class VTONPipeline:
     def _extract_keypoints_mp(self, img: np.ndarray):
         """Mediapipe-based keypoint extraction."""
         mp_image = self.mp.Image(
-            image_format=self.mp.ImageFormat.SRGB, data=img[..., ::-1]
+            self.mp.ImageFormat.SRGB, img[..., ::-1].copy()
         )
         results = self.mp_pose.process(mp_image)
         lm = results.pose_landmarks
