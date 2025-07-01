@@ -1,7 +1,9 @@
 import os
+import logging
 import numpy as np
 import pytest
 cv2 = pytest.importorskip("cv2")
+from skimage.transform import PiecewiseAffineTransform
 from vton import VTONPipeline
 
 # Skip heavy tests when requested or when heavy dependencies are missing.
@@ -81,3 +83,40 @@ def test_extract_keypoints_fallback(monkeypatch):
     result = pipe.extract_keypoints(np.zeros((1, 1, 3), dtype=np.uint8))
     assert fallback_called
     assert result == {"nose": (0, 0)}
+
+
+def test_warp_fallback_estimation(monkeypatch, caplog):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+    cloth = np.ones((4, 4, 3), dtype=np.uint8)
+    mask = np.ones((4, 4), dtype=np.uint8)
+    src = {"nose": (0, 0), "neck": (1, 0), "left_shoulder": (0, 1)}
+    dst = {"nose": (1, 1), "neck": (2, 1), "left_shoulder": (1, 2)}
+
+    monkeypatch.setattr(PiecewiseAffineTransform, "estimate", lambda self, s, d: False)
+    with caplog.at_level(logging.WARNING):
+        out_c, out_m = pipe.warp(cloth, mask, src, dst, person_shape=(4, 4))
+    assert out_c.shape == cloth.shape
+    assert out_m.shape == mask.shape
+    assert "approximate overlay" in caplog.text.lower()
+
+
+def test_warp_fallback_error(monkeypatch, caplog):
+    pipe = VTONPipeline.__new__(VTONPipeline)
+    cloth = np.ones((4, 4, 3), dtype=np.uint8)
+    mask = np.ones((4, 4), dtype=np.uint8)
+    src = {"nose": (0, 0), "neck": (1, 0), "left_shoulder": (0, 1)}
+    dst = {"nose": (1, 1), "neck": (2, 1), "left_shoulder": (1, 2)}
+
+    monkeypatch.setattr(PiecewiseAffineTransform, "estimate", lambda self, s, d: True)
+    monkeypatch.setattr(PiecewiseAffineTransform, "__call__", lambda self, pts: pts + 50)
+    monkeypatch.setattr(
+        PiecewiseAffineTransform,
+        "inverse",
+        property(lambda self: type("Inv", (), {"__call__": lambda _self, pts: pts + 50})()),
+    )
+
+    with caplog.at_level(logging.WARNING):
+        out_c, out_m = pipe.warp(cloth, mask, src, dst, person_shape=(4, 4))
+    assert out_c.shape == cloth.shape
+    assert out_m.shape == mask.shape
+    assert "approximate overlay" in caplog.text.lower()
