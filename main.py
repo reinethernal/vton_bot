@@ -1,4 +1,7 @@
 import os
+# Suppress verbose logs from TensorFlow and Mediapipe
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")  # hide TF and mediapipe warnings
+os.environ.setdefault("GLOG_minloglevel", "2")
 import logging
 import asyncio
 import json
