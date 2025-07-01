@@ -82,7 +82,7 @@ def test_extract_keypoints_fallback(monkeypatch, caplog):
 
     with caplog.at_level(logging.WARNING):
         result = pipe.extract_keypoints(np.zeros((1, 1, 3), dtype=np.uint8))
-    assert "no keypoints" in caplog.text.lower()
+    assert "OpenPose detected no keypoints on (1, 1, 3); switching to Mediapipe" in caplog.text
     assert fallback_called
     assert result == {"nose": (0, 0)}
 

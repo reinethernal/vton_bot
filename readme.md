@@ -65,10 +65,11 @@ as the NVIDIA RTX A4000.
    directory. This installs the Python bindings required for `VTONPipeline` to
    load OpenPose. If OpenPose is installed but fails to produce keypoints for an
    image, you will see a warning like `OpenPose detected no keypoints on
-   (480, 640, 3); switching to Mediapipe` and the pipeline will automatically
-   fall back to Mediapipe when it is available. Installing Mediapipe is
-   therefore recommended to avoid errors like `Keypoint extraction failed` when
-   OpenPose struggles with a particular photo.
+   (480, 640, 3); switching to Mediapipe`. The warning includes the backend name
+   and the image shape to make the fallback easier to diagnose. The pipeline
+   will automatically fall back to Mediapipe when it is available. Installing
+   Mediapipe is therefore recommended to avoid errors like `Keypoint extraction
+   failed` when OpenPose struggles with a particular photo.
 
    Mediapipe 0.10 changed the Pose API to use `mp.Image` objects instead of
    plain NumPy arrays. `VTONPipeline` detects the supported input type at runtime
