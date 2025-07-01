@@ -59,7 +59,7 @@ def test_invalid_segmentation_model():
         VTONPipeline(segmentation_model="foo")
 
 
-def test_extract_keypoints_fallback(monkeypatch):
+def test_extract_keypoints_fallback(monkeypatch, caplog):
     pipe = VTONPipeline.__new__(VTONPipeline)
     pipe.pose_backend = "openpose"
     pipe.op = type("Op", (), {"Datum": lambda self=None: type("Datum", (), {})(),
@@ -80,7 +80,9 @@ def test_extract_keypoints_fallback(monkeypatch):
     datum.poseKeypoints = None
     monkeypatch.setattr(pipe.op, "Datum", lambda: datum)
 
-    result = pipe.extract_keypoints(np.zeros((1, 1, 3), dtype=np.uint8))
+    with caplog.at_level(logging.WARNING):
+        result = pipe.extract_keypoints(np.zeros((1, 1, 3), dtype=np.uint8))
+    assert "no keypoints" in caplog.text.lower()
     assert fallback_called
     assert result == {"nose": (0, 0)}
 

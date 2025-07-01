@@ -160,7 +160,14 @@ class VTONPipeline:
             pts_arr = datum.poseKeypoints
             if pts_arr is None or pts_arr.size == 0:
                 if self.mp_pose is not None:
-                    logger.warning("OpenPose failed, falling back to Mediapipe")
+                    backend_name = (
+                        "OpenPose" if self.pose_backend == "openpose" else self.pose_backend
+                    )
+                    logger.warning(
+                        "%s detected no keypoints on %s; switching to Mediapipe",
+                        backend_name,
+                        img.shape,
+                    )
                     return self._extract_keypoints_mp(img)
                 return None
             kp = pts_arr[0]
